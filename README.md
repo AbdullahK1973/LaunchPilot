@@ -39,6 +39,7 @@ For real generation, set `OPENAI_API_KEY`. For image uploads, provide all `S3_*`
 
 ## Production notes
 
+- Merges to `master` publish a production image to `ghcr.io/abdullahk1973/launchpilot`.
 - Run behind HTTPS and set `APP_URL` to the canonical HTTPS origin.
 - Use a managed PostgreSQL service with backups and connection pooling.
 - Keep upload buckets private for writes; configure the public or CDN URL for read-only image access.
