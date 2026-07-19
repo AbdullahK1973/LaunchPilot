@@ -16,6 +16,13 @@ const schema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_PRO_PRICE_ID: z.string().optional(),
   SENTRY_DSN: z.string().optional(),
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().default("LaunchPilot <noreply@launchpilot.local>"),
+  INTEGRATION_ENCRYPTION_KEY: z.string().min(32).optional(),
+  SHOPIFY_CLIENT_ID: z.string().optional(),
+  SHOPIFY_CLIENT_SECRET: z.string().optional(),
+  KLAVIYO_CLIENT_ID: z.string().optional(),
+  KLAVIYO_CLIENT_SECRET: z.string().optional(),
 });
 
 export const env = schema.parse(process.env);

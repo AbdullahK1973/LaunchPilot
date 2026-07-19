@@ -52,17 +52,24 @@ export async function requireUser() {
 
 export async function requireWorkspace() {
   const user = await requireUser();
-  const membership = user.memberships[0];
+  const selectedId = (await cookies()).get("launchpilot_workspace")?.value;
+  const membership = user.memberships.find((item) => item.workspaceId === selectedId) ?? user.memberships[0];
   if (!membership) throw new Error("No workspace membership found.");
   return { user, membership, workspace: membership.workspace };
 }
 
+export async function requireWorkspaceRole(roles: Array<"OWNER" | "ADMIN" | "MEMBER">) {
+  const context = await requireWorkspace();
+  if (!roles.includes(context.membership.role)) throw new Error("You do not have permission to perform this action.");
+  return context;
+}
+
 export async function authorizeLaunch(launchId: string) {
-  const { workspace } = await requireWorkspace();
+  const { workspace, user } = await requireWorkspace();
   const launch = await getDb().launch.findFirst({
     where: { id: launchId, workspaceId: workspace.id },
-    include: { product: { include: { brand: true, images: true } }, outputs: { include: { revisions: { orderBy: { version: "desc" }, take: 1 } } } },
+    include: { product: { include: { brand: true, images: true } }, outputs: { include: { revisions: { orderBy: { version: "desc" }, take: 20, include: { comments: { include: { author: true }, orderBy: { createdAt: "asc" } } } } } } },
   });
   if (!launch) throw new Error("Launch not found.");
-  return { launch, workspace };
+  return { launch, workspace, user };
 }

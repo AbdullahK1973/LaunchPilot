@@ -1,0 +1,4 @@
+const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+export const MAX_UPLOAD_SIZE = 10 * 1024 * 1024;
+export function validateUploadMetadata(fileName:string,mimeType:string,size:number){if(!allowedTypes.has(mimeType))throw new Error("Only JPEG, PNG, and WebP images are supported.");if(size<=0||size>MAX_UPLOAD_SIZE)throw new Error("Images must be 10 MB or smaller.");const extension=fileName.split(".").pop()?.toLowerCase();if(!extension||!["jpg","jpeg","png","webp"].includes(extension))throw new Error("The image filename has an unsupported extension.");return extension}
+export function assertProductUploadKey(productId:string,key:string){if(!key.startsWith(`products/${productId}/`)||key.includes("..")||key.includes("\\"))throw new Error("The upload key is not valid for this product.")}

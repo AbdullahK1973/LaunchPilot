@@ -2,15 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, CreditCard, History, LayoutDashboard, Rocket, Settings } from "lucide-react";
+import { BarChart3, CreditCard, History, LayoutDashboard, Package, Rocket, Settings, UserRound, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/summary", label: "Dashboard", icon: LayoutDashboard },
   { href: "/actions", label: "Launches", icon: Rocket },
+  { href: "/catalog", label: "Catalog", icon: Package },
+  { href: "/team", label: "Team", icon: Users },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/history", label: "History", icon: History },
   { href: "/billing", label: "Billing", icon: CreditCard },
   { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/account", label: "Account", icon: UserRound },
 ];
 
 export function Sidebar() {

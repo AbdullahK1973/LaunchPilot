@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { requireWorkspace, authorizeLaunch } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { launchSchema } from "@/lib/schemas";
-import { consumeGeneration } from "@/lib/entitlements";
+import { finalizeGeneration, reserveGeneration } from "@/lib/entitlements";
 import { generateLaunchOutput, buildPrompt } from "@/lib/ai";
 import { rateLimit } from "@/lib/rate-limit";
 import type { LaunchActionId, OutputSection } from "@/types/launch";
@@ -27,22 +27,42 @@ export async function createLaunch(_: FormState, formData: FormData): Promise<Fo
 }
 
 export async function generateOutput(launchId: string, actionId: LaunchActionId, note = "", previousSections?: OutputSection[]) {
-  const { launch, workspace } = await authorizeLaunch(launchId);
-  if (!rateLimit(`generation:${workspace.id}`, 10, 60_000)) throw new Error("Too many generation requests. Try again in a minute.");
-  await consumeGeneration(workspace.id, { launchId, actionId });
+  const { launch, workspace, user } = await authorizeLaunch(launchId);
+  if (!await rateLimit(`generation:${workspace.id}`, 10, 60_000)) throw new Error("Too many generation requests. Try again in a minute.");
+  const requestId = crypto.randomUUID();
+  await reserveGeneration(workspace.id, requestId, { launchId, actionId });
+  await getDb().launch.update({ where: { id: launchId }, data: { status: "GENERATING" } });
   const context = {
     actionId, note, previousSections,
     brand: { name: launch.product.brand.name, tone: launch.product.brand.tone, targetAudience: launch.product.brand.targetAudience, launchGoal: launch.product.brand.launchGoal },
     product: { name: launch.product.name, category: launch.product.category, description: launch.product.description, keyFeatures: launch.product.keyFeatures, price: launch.product.price, specialNotes: launch.product.specialNotes, images: launch.product.images.map(({ url }) => ({ url })) },
   };
-  const result = await generateLaunchOutput(context);
-  const existing = await getDb().output.findFirst({ where: { launchId, actionId }, include: { _count: { select: { revisions: true } } } });
-  const output = existing
-    ? await getDb().output.update({ where: { id: existing.id }, data: { note, revisions: { create: { version: existing._count.revisions + 1, sections: result.sections, prompt: buildPrompt(context), model: result.model, inputTokens: result.inputTokens, outputTokens: result.outputTokens } } } })
-    : await getDb().output.create({ data: { launchId, actionId, title: actionId, note, revisions: { create: { version: 1, sections: result.sections, prompt: buildPrompt(context), model: result.model, inputTokens: result.inputTokens, outputTokens: result.outputTokens } } } });
-  await getDb().launch.update({ where: { id: launchId }, data: { status: "COMPLETE" } });
-  revalidatePath(`/launches/${launchId}`);
-  return { outputId: output.id, sections: result.sections };
+  try {
+    const result = await generateLaunchOutput(context);
+    const output = await getDb().$transaction(async (tx) => {
+      let existing = await tx.output.findFirst({ where: { launchId, actionId } });
+      if (!existing) existing = await tx.output.create({ data: { launchId, actionId, title: actionId, note } });
+      const latest = await tx.outputRevision.aggregate({ where: { outputId: existing.id }, _max: { version: true } });
+      await tx.output.update({ where: { id: existing.id }, data: { note } });
+      await tx.outputRevision.create({ data: {
+        outputId: existing.id, version: (latest._max.version ?? 0) + 1, sections: result.sections,
+        prompt: buildPrompt(context), model: result.model, inputTokens: result.inputTokens,
+        outputTokens: result.outputTokens, createdById: user.id,
+      } });
+      await tx.launch.update({ where: { id: launchId }, data: { status: "COMPLETE" } });
+      await tx.analyticsEvent.create({ data: { workspaceId: workspace.id, name: "output.generated", properties: { launchId, actionId, model: result.model } } });
+      return existing;
+    }, { isolationLevel: "Serializable" });
+    await finalizeGeneration(requestId, true);
+    revalidatePath(`/launches/${launchId}`);
+    return { outputId: output.id, sections: result.sections };
+  } catch (error) {
+    await Promise.allSettled([
+      finalizeGeneration(requestId, false),
+      getDb().launch.update({ where: { id: launchId }, data: { status: "FAILED" } }),
+    ]);
+    throw error;
+  }
 }
 
 export async function archiveLaunch(launchId: string) {

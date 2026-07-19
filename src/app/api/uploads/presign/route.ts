@@ -9,7 +9,7 @@ export async function POST(request:Request){
   try{
     const input=schema.parse(await request.json());
     const {launch}=await authorizeLaunch(input.launchId);
-    if(!rateLimit(`upload:${launch.workspaceId}`,30,60_000))throw new Error("Too many upload requests. Try again shortly.");
+    if(!await rateLimit(`upload:${launch.workspaceId}`,30,60_000))throw new Error("Too many upload requests. Try again shortly.");
     const key=`products/${launch.productId}/${validateUpload(input.fileName,input.mimeType,input.size)}`;
     const signed=await createPresignedUpload(key,input.mimeType);
     return NextResponse.json({...signed,key});
