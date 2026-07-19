@@ -17,6 +17,7 @@
 # next.js
 /.next/
 /.open-next/
+/.sites-artifact/
 /out/
 
 # production
