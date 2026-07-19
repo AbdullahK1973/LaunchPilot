@@ -1,0 +1,1 @@
+export default function Loading(){return <main aria-busy="true" aria-label="Loading" className="grid min-h-screen place-items-center bg-slate-50"><div className="size-10 animate-spin rounded-full border-4 border-slate-200 border-t-slate-950"/></main>}

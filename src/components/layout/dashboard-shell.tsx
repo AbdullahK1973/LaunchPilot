@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { Menu, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
+import { signOut } from "@/app/actions/auth";
+import { MobileNav } from "@/components/layout/mobile-nav";
 
 type DashboardShellProps = {
   title: string;
@@ -17,11 +19,7 @@ export function DashboardShell({ title, description, children }: DashboardShellP
           <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/85 px-4 py-4 backdrop-blur md:px-8">
             <div className="flex items-center justify-between gap-4">
               <div className="min-w-0">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500 lg:hidden">
-                  <Menu size={16} />
-                  LaunchPilot
-                </div>
-                <h1 className="truncate text-2xl font-semibold tracking-tight text-slate-950">{title}</h1>
+                <div className="flex items-center gap-3"><MobileNav/><h1 className="truncate text-2xl font-semibold tracking-tight text-slate-950">{title}</h1></div>
                 {description ? <p className="mt-1 text-sm text-slate-500">{description}</p> : null}
               </div>
               <Link
@@ -31,6 +29,9 @@ export function DashboardShell({ title, description, children }: DashboardShellP
                 <Sparkles size={16} />
                 New Launch
               </Link>
+              <form action={signOut}>
+                <button className="text-sm font-semibold text-slate-500 hover:text-slate-950">Sign out</button>
+              </form>
             </div>
           </header>
           <main className="flex-1 px-4 py-6 md:px-8 md:py-8">{children}</main>

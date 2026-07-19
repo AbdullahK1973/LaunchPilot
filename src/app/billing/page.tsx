@@ -1,29 +1,11 @@
-import { CreditCard } from "lucide-react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { requireWorkspace } from "@/lib/auth";
+import { getEntitlements } from "@/lib/entitlements";
+import { openBillingPortal, startCheckout } from "@/app/actions/billing";
 
-export default function BillingPage() {
-  return (
-    <DashboardShell
-      title="LaunchPilot Billing"
-      description="A starter billing screen for plan, usage, and checkout integration."
-    >
-      <Card className="mx-auto max-w-4xl p-8">
-        <div className="grid size-12 place-items-center rounded-lg bg-slate-100 text-slate-700">
-          <CreditCard size={22} />
-        </div>
-        <h2 className="mt-5 text-2xl font-semibold tracking-tight text-slate-950">Starter plan</h2>
-        <p className="mt-3 text-sm leading-6 text-slate-600">
-          LaunchPilot billing is ready to connect to Stripe or Shopify billing when backend work begins.
-        </p>
-        <div className="mt-6 grid gap-3 md:grid-cols-3">
-          {["5 demo launches", "Mock AI outputs", "Workspace editing"].map((item) => (
-            <div key={item} className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-700">
-              {item}
-            </div>
-          ))}
-        </div>
-      </Card>
-    </DashboardShell>
-  );
+export default async function BillingPage(){
+  const {workspace}=await requireWorkspace();const entitlement=await getEntitlements(workspace.id);
+  return <DashboardShell title="Billing and usage" description="Subscription entitlements are enforced on every generation."><Card className="mx-auto max-w-3xl p-8"><p className="text-xs font-bold uppercase text-sky-700">{entitlement.plan} plan</p><h2 className="mt-2 text-3xl font-semibold">{entitlement.used} / {entitlement.limit}</h2><p className="mt-2 text-slate-600">generations used this calendar month</p><div className="mt-6 h-3 overflow-hidden rounded-full bg-slate-100"><div className="h-full bg-sky-600" style={{width:`${Math.min(100,(entitlement.used/entitlement.limit)*100)}%`}}/></div><div className="mt-8 flex flex-wrap gap-3">{entitlement.plan==="FREE"?<form action={startCheckout}><Button>Upgrade to Pro</Button></form>:<form action={openBillingPortal}><Button variant="secondary">Manage subscription</Button></form>}</div></Card></DashboardShell>;
 }
