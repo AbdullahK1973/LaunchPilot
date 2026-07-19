@@ -1,0 +1,218 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum LaunchStatus {
+  DRAFT
+  READY
+  GENERATING
+  COMPLETE
+  FAILED
+  ARCHIVED
+}
+
+enum SubscriptionPlan {
+  FREE
+  PRO
+  TEAM
+}
+
+enum SubscriptionStatus {
+  INACTIVE
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  sessions     Session[]
+  memberships  Membership[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Workspace {
+  id            String         @id @default(cuid())
+  name          String
+  slug          String         @unique
+  defaultTone   String         @default("Premium")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  memberships   Membership[]
+  brands        Brand[]
+  launches      Launch[]
+  subscription  Subscription?
+  usageEvents   UsageEvent[]
+  integrations  Integration[]
+}
+
+model Membership {
+  id          String        @id @default(cuid())
+  userId      String
+  workspaceId String
+  role        WorkspaceRole @default(MEMBER)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@index([workspaceId])
+}
+
+model Brand {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  name           String
+  tone           String
+  targetAudience String
+  launchGoal     String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  products       Product[]
+
+  @@index([workspaceId])
+}
+
+model Product {
+  id          String    @id @default(cuid())
+  brandId     String
+  name        String
+  category    String
+  description String
+  keyFeatures String
+  price       String
+  productUrl  String?
+  competitorUrl String?
+  specialNotes String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  brand       Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  images      ProductImage[]
+  launches    Launch[]
+
+  @@index([brandId])
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  key       String   @unique
+  url       String
+  fileName  String
+  mimeType  String
+  size      Int
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+model Launch {
+  id          String       @id @default(cuid())
+  workspaceId String
+  productId   String
+  name        String
+  status      LaunchStatus @default(DRAFT)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  product     Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  outputs     Output[]
+
+  @@index([workspaceId, updatedAt])
+}
+
+model Output {
+  id        String   @id @default(cuid())
+  launchId  String
+  actionId  String
+  title     String
+  note      String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  launch    Launch   @relation(fields: [launchId], references: [id], onDelete: Cascade)
+  revisions OutputRevision[]
+
+  @@index([launchId, updatedAt])
+}
+
+model OutputRevision {
+  id               String   @id @default(cuid())
+  outputId         String
+  version          Int
+  sections         Json
+  prompt           String?
+  model            String?
+  inputTokens      Int      @default(0)
+  outputTokens     Int      @default(0)
+  createdAt        DateTime @default(now())
+  output           Output   @relation(fields: [outputId], references: [id], onDelete: Cascade)
+
+  @@unique([outputId, version])
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  workspaceId          String             @unique
+  stripeCustomerId     String?            @unique
+  stripeSubscriptionId String?            @unique
+  plan                 SubscriptionPlan   @default(FREE)
+  status               SubscriptionStatus @default(INACTIVE)
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  workspace            Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model UsageEvent {
+  id          String    @id @default(cuid())
+  workspaceId String
+  type        String
+  quantity    Int       @default(1)
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+}
+
+model Integration {
+  id          String    @id @default(cuid())
+  workspaceId String
+  provider    String
+  label       String
+  config      Json
+  enabled     Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, provider])
+}
