@@ -2,6 +2,7 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_call:
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -23,7 +24,18 @@ jobs:
         with: { node-version: 22, cache: npm }
       - run: npm ci
       - run: npm run db:generate
+      - run: npm run db:deploy
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - run: npm run build:hosting
+      - name: Package Sites deployment
+        run: tar --dereference --hard-dereference -czf launchpilot-sites.tar.gz .open-next .openai/hosting.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: launchpilot-sites
+          path: launchpilot-sites.tar.gz
+          retention-days: 3
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e

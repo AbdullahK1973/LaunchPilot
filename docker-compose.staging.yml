@@ -1,0 +1,16 @@
+services:
+  app:
+    image: ${LAUNCHPILOT_IMAGE:-ghcr.io/abdullahk1973/launchpilot:latest}
+    restart: unless-stopped
+    env_file: .env.staging
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/ready').then(r=>{if(!r.ok)process.exit(1)})"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    deploy:
+      update_config:
+        order: start-first
+        failure_action: rollback

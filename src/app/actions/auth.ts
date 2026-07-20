@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { createPasswordHash, createSession, destroySession, verifyPassword } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { authSchema } from "@/lib/schemas";
+import { rateLimit } from "@/lib/rate-limit";
+import { sendVerificationEmail } from "@/app/actions/account";
 
 export type AuthState = { error?: string };
 
@@ -19,6 +21,7 @@ export async function signUp(_: AuthState, formData: FormData): Promise<AuthStat
       memberships: { create: { role: "OWNER", workspace: { create: { name: `${result.data.name}'s workspace`, slug, subscription: { create: {} } } } } },
     },
   });
+  await sendVerificationEmail(user.id);
   await createSession(user.id);
   redirect("/summary");
 }
@@ -26,6 +29,7 @@ export async function signUp(_: AuthState, formData: FormData): Promise<AuthStat
 export async function signIn(_: AuthState, formData: FormData): Promise<AuthState> {
   const result = authSchema.omit({ name: true }).safeParse(Object.fromEntries(formData));
   if (!result.success) return { error: "Invalid email or password." };
+  if (!await rateLimit(`sign-in:${result.data.email}`, 8, 15 * 60_000)) return { error: "Too many sign-in attempts. Try again later." };
   const user = await getDb().user.findUnique({ where: { email: result.data.email } });
   if (!user || !(await verifyPassword(result.data.password, user.passwordHash))) return { error: "Invalid email or password." };
   await createSession(user.id);

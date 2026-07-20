@@ -12,7 +12,7 @@ export async function startCheckout(){
   let subscription=await db.subscription.findUnique({where:{workspaceId:workspace.id}});
   let customerId=subscription?.stripeCustomerId;
   if(!customerId){const customer=await stripe.customers.create({email:user.email,name:workspace.name,metadata:{workspaceId:workspace.id}});customerId=customer.id;subscription=await db.subscription.upsert({where:{workspaceId:workspace.id},create:{workspaceId:workspace.id,stripeCustomerId:customerId},update:{stripeCustomerId:customerId}});}
-  const session=await stripe.checkout.sessions.create({mode:"subscription",customer:customerId,line_items:[{price:env.STRIPE_PRO_PRICE_ID,quantity:1}],success_url:`${env.APP_URL}/billing?success=1`,cancel_url:`${env.APP_URL}/billing`,metadata:{workspaceId:workspace.id}});
+  const session=await stripe.checkout.sessions.create({mode:"subscription",customer:customerId,line_items:[{price:env.STRIPE_PRO_PRICE_ID,quantity:1}],success_url:`${env.APP_URL}/billing?success=1`,cancel_url:`${env.APP_URL}/billing`,client_reference_id:workspace.id,metadata:{workspaceId:workspace.id},subscription_data:{metadata:{workspaceId:workspace.id}}});
   if(!session.url) throw new Error("Stripe did not return a checkout URL.");
   redirect(session.url);
 }

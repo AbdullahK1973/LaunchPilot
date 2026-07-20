@@ -1,0 +1,1 @@
+import {NextResponse} from "next/server";import {getDb} from "@/lib/db";export async function GET(){try{await getDb().$queryRaw`SELECT 1`;return NextResponse.json({status:"ready"},{headers:{"cache-control":"no-store"}})}catch{return NextResponse.json({status:"unavailable"},{status:503,headers:{"cache-control":"no-store"}})}}

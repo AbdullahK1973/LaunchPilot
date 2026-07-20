@@ -1,0 +1,30 @@
+name: Deploy staging
+on:
+  workflow_dispatch:
+    inputs:
+      image:
+        description: Container image tag
+        default: latest
+        required: true
+permissions:
+  contents: read
+jobs:
+  validate:
+    uses: ./.github/workflows/ci.yml
+  deploy:
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy through configured staging webhook
+        env:
+          DEPLOY_URL: ${{ secrets.STAGING_DEPLOY_WEBHOOK }}
+          DEPLOY_TOKEN: ${{ secrets.STAGING_DEPLOY_TOKEN }}
+          IMAGE: ghcr.io/${{ github.repository }}:${{ inputs.image }}
+        run: |
+          test -n "$DEPLOY_URL"
+          curl --fail-with-body --retry 3 -X POST "$DEPLOY_URL" \
+            -H "Authorization: Bearer $DEPLOY_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data "{\"image\":\"$IMAGE\",\"compose\":\"docker-compose.staging.yml\",\"migrate\":\"npm run db:deploy\"}"
